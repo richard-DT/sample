@@ -34,13 +34,13 @@
 
 <script setup>
 
-    import { ref } from 'vue';
+    import { ref, onMounted, onBeforeUnmount } from 'vue';
     import { Notyf } from 'notyf';
     import 'notyf/notyf.min.css';
 
     const notyf = new Notyf();
 
-    const WEB3FORMS_ACCESS_KEY = "5be50ad3-edb1-4807-9d33-6a3061adde7b";
+    const WEB3FORMS_ACCESS_KEY = "74411fe1-c66c-425f-814b-f536f80ae4a7";
 
     const subject = "New message from Portfolio Contact Form";
 
@@ -52,6 +52,12 @@
 
 
     const submitForm = async() => {
+
+        if(!recaptchaToken.value){
+            notyf.error('Pls verify that you are not a robot.')
+            return;
+        }
+
         isLoading.value = true;
 
         try {
@@ -81,7 +87,58 @@
             console.log(error);
             isLoading.value = false;
             notyf.error("Failed to send message");
+        } finally {
+            resetRecaptcha();
         }
     }
+
+    const SITE_KEY = '6Ldw7gksAAAAAFgdItR53fu21KrkVQc1kGoUAFxo';
+
+    const recaptchaContainer = ref(null);
+    const recaptchaWidgetId = ref(null);
+    const recaptchaToken = ref(null);
+
+    function onRecaptchaSuccess(token){
+        recaptchaToken.value = token;
+    }
+
+    function onRecaptchaExpired(){
+        recaptchaToken.value = "";
+    }
+
+    function renderRecaptcha(){
+        if(!window.grecaptcha){
+            console.error('recaptcha not loaded');
+            return
+        }
+        recaptchaWidgetId.value = window.grecaptcha.render(recaptchaContainer.value, {
+            sitekey: SITE_KEY,
+            size: 'normal',
+            callback: onRecaptchaSuccess,
+            'expired-callback': onRecaptchaExpired
+        })
+    }
+
+    function resetRecaptcha(){
+
+        if(recaptchaWidgetId.value !== null){
+            window.grecaptcha.reset(recaptchaWidgetId.value);
+            recaptchaToken.value = '';
+        }
+    }
+
+    onMounted(() => {
+        const interval = setInterval(() => {
+            if(window.grecaptcha && window.grecaptcha.render){
+                renderRecaptcha();
+                clearInterval(interval)
+            }
+        }, 100);
+
+        onBeforeUnmount(() => {
+            clearInterval(interval)
+        })
+    })
+    
     
 </script>
